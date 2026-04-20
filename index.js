@@ -75,10 +75,25 @@ User message: "${userMessage}"
   }
 });
 
+// ========== NEW: timeout helper ==========
+async function fetchWithTimeout(url, options, timeout = 15000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(id);
+    return res;
+  } catch (err) {
+    clearTimeout(id);
+    throw err;
+  }
+}
+
 // ========== HELPER FUNCTIONS ==========
 async function callOpenAIChat(systemPrompt, userText) {
   const body = {
-    model: "gpt-4o-mini", // أكثر استقرارًا من gpt-5 في البوتات
+    model: "gpt-4.1-mini",
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userText }
@@ -88,47 +103,73 @@ async function callOpenAIChat(systemPrompt, userText) {
     top_p: 0.95
   };
 
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${OPENAI_KEY}`
-    },
-    body: JSON.stringify(body)
-  });
+  let retries = 3;
 
-  if (!res.ok) {
-    const txt = await res.text();
-    console.error('OpenAI chat error', res.status, txt);
-    return "فشلت محاولة الرد، جرّب بعد شوية.";
+  while (retries > 0) {
+    try {
+      const res = await fetchWithTimeout(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${OPENAI_KEY}`
+          },
+          body: JSON.stringify(body)
+        },
+        15000
+      );
+
+      if (!res.ok) {
+        const txt = await res.text();
+        console.error('OpenAI chat error', res.status, txt);
+        retries--;
+        continue;
+      }
+
+      const json = await res.json();
+      return json.choices?.[0]?.message?.content?.trim() || "هااا؟ 😑";
+
+    } catch (err) {
+      console.warn("⚠️ Retry بسبب خطأ:", err.message);
+      retries--;
+      await new Promise(r => setTimeout(r, 2000));
+    }
   }
 
-  const json = await res.json();
-  const reply = json.choices?.[0]?.message?.content?.trim();
-  return reply || "هااا؟ ما فهمت قصدك 😑";
+  return "تعطل عقلي شوي… جرّب بعد لحظة 😒";
 }
 
 async function checkModeration(text) {
-  const res = await fetch("https://api.openai.com/v1/moderations", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${OPENAI_KEY}`
-    },
-    body: JSON.stringify({
-      model: "omni-moderation-latest",
-      input: text
-    })
-  });
+  try {
+    const res = await fetchWithTimeout(
+      "https://api.openai.com/v1/moderations",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${OPENAI_KEY}`
+        },
+        body: JSON.stringify({
+          model: "omni-moderation-latest",
+          input: text
+        })
+      },
+      10000
+    );
 
-  if (!res.ok) {
-    console.error('Moderation API error', await res.text());
+    if (!res.ok) {
+      console.error('Moderation API error', await res.text());
+      return false;
+    }
+
+    const json = await res.json();
+    return !!json.results?.[0]?.flagged;
+
+  } catch (err) {
+    console.warn("⚠️ Moderation failed:", err.message);
     return false;
   }
-
-  const json = await res.json();
-  const flagged = json.results?.[0]?.flagged;
-  return !!flagged;
 }
 
 // ========== KEEP RENDER ALIVE ==========
