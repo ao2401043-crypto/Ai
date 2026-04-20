@@ -9,6 +9,18 @@ const OPENAI_KEY = process.env.OPENAI_API_KEY;
 const CHANNEL_ID = process.env.TARGET_CHANNEL_ID;
 const BOT_NAME = process.env.BOT_NAME || 'Miko';
 
+// ✅ تحقق مهم (ما يغير المنطق)
+if (!DISCORD_TOKEN) {
+  console.error("❌ DISCORD_TOKEN مفقود");
+  process.exit(1);
+}
+if (!OPENAI_KEY) {
+  console.error("❌ OPENAI_API_KEY مفقود");
+}
+if (!CHANNEL_ID) {
+  console.error("❌ TARGET_CHANNEL_ID مفقود");
+}
+
 // ========== DISCORD CLIENT ==========
 const client = new Client({
   intents: [
@@ -75,7 +87,7 @@ User message: "${userMessage}"
   }
 });
 
-// ========== NEW: timeout helper ==========
+// ========== timeout helper ==========
 async function fetchWithTimeout(url, options, timeout = 15000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
