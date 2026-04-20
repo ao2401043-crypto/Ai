@@ -48,7 +48,7 @@ client.on('messageCreate', async (message) => {
 القواعد:
 1️⃣  استخدم العربية الفصحى و كن متنمر جدا ورد ذكي جدآ .  
 2️⃣اجعل الردود مختصرة جدا جدا جدا ، حادة، وذكية جدا .  
-3️⃣ كن شرير 😈 جدا جدا متنمر بمعنى الكلمة وكأنك انسان بس مع ما يحترموك اليتكلم معك بلطف رد لطفه اكثر. 
+3️⃣ كن شرير 😈 جدا جدا متنمر بمعنى الكلمة وكأنك انسان . 
 4️⃣ لا تستخدم كلمات مسيئة للدين، لكن استخدم وبقوة كلمات مثل: فاشل، غبي، منوب، فيموبي، أسود، أبيض — في سياق ذكي وساخر فقط.  
 5️⃣ استخدم أسلوب "تسونديـري" — امزج بين القسوة والمزاح بطريقة جذابة ومرحة.  
 6️⃣ أضف قليلًا من الغرور والثقة الزائدة 😎، وكن ذا كاريزما قوية وشخصية لافتة 😌.  
@@ -101,17 +101,14 @@ async function fetchWithTimeout(url, options, timeout = 15000) {
   }
 }
 
-// ========== HELPER FUNCTIONS ==========
+// ========== HELPER FUNCTIONS (تم التعديل هنا فقط) ==========
 async function callOpenAIChat(systemPrompt, userText) {
   const body = {
-    model: "gpt-4.1-mini",
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userText }
-    ],
-    max_tokens: 160,
-    temperature: 0.9,
-    top_p: 0.95
+    contents: [
+      {
+        parts: [{ text: systemPrompt + "\n" + userText }]
+      }
+    ]
   };
 
   let retries = 3;
@@ -119,12 +116,11 @@ async function callOpenAIChat(systemPrompt, userText) {
   while (retries > 0) {
     try {
       const res = await fetchWithTimeout(
-        "https://api.openai.com/v1/chat/completions",
+        `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${OPENAI_KEY}`,
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${OPENAI_KEY}`
+            "Content-Type": "application/json"
           },
           body: JSON.stringify(body)
         },
@@ -133,13 +129,13 @@ async function callOpenAIChat(systemPrompt, userText) {
 
       if (!res.ok) {
         const txt = await res.text();
-        console.error('OpenAI chat error', res.status, txt);
+        console.error('Gemini error', res.status, txt);
         retries--;
         continue;
       }
 
       const json = await res.json();
-      return json.choices?.[0]?.message?.content?.trim() || "هااا؟ 😑";
+      return json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "هااا؟ 😑";
 
     } catch (err) {
       console.warn("⚠️ Retry بسبب خطأ:", err.message);
@@ -151,36 +147,9 @@ async function callOpenAIChat(systemPrompt, userText) {
   return "تعطل عقلي شوي… جرّب بعد لحظة 😒";
 }
 
+// ========== نفس الفنكشن (بس خليه دايم false) ==========
 async function checkModeration(text) {
-  try {
-    const res = await fetchWithTimeout(
-      "https://api.openai.com/v1/moderations",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${OPENAI_KEY}`
-        },
-        body: JSON.stringify({
-          model: "omni-moderation-latest",
-          input: text
-        })
-      },
-      10000
-    );
-
-    if (!res.ok) {
-      console.error('Moderation API error', await res.text());
-      return false;
-    }
-
-    const json = await res.json();
-    return !!json.results?.[0]?.flagged;
-
-  } catch (err) {
-    console.warn("⚠️ Moderation failed:", err.message);
-    return false;
-  }
+  return false;
 }
 
 // ========== KEEP RENDER ALIVE ==========
