@@ -4,7 +4,7 @@ import express from 'express';
 
 // ========== ENV VARIABLES ==========
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
-const OPENAI_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_KEY = process.env.GEMINI_API_KEY; // ✅ تم التعديل هنا فقط
 const CHANNEL_ID = process.env.TARGET_CHANNEL_ID;
 const BOT_NAME = process.env.BOT_NAME || 'Miko';
 
@@ -14,7 +14,7 @@ if (!DISCORD_TOKEN) {
   process.exit(1);
 }
 if (!OPENAI_KEY) {
-  console.error("❌ OPENAI_API_KEY مفقود");
+  console.error("❌ GEMINI_API_KEY مفقود"); // ✅ تعديل بسيط للوضوح
 }
 if (!CHANNEL_ID) {
   console.error("❌ TARGET_CHANNEL_ID مفقود");
@@ -101,7 +101,7 @@ async function fetchWithTimeout(url, options, timeout = 15000) {
   }
 }
 
-// ========== HELPER FUNCTIONS (تم التعديل هنا فقط) ==========
+// ========== HELPER FUNCTIONS ==========
 async function callOpenAIChat(systemPrompt, userText) {
   const body = {
     contents: [
@@ -116,7 +116,7 @@ async function callOpenAIChat(systemPrompt, userText) {
   while (retries > 0) {
     try {
       const res = await fetchWithTimeout(
-        `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${OPENAI_KEY}`,
+        `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${OPENAI_KEY}`,
         {
           method: "POST",
           headers: {
@@ -147,7 +147,7 @@ async function callOpenAIChat(systemPrompt, userText) {
   return "تعطل عقلي شوي… جرّب بعد لحظة 😒";
 }
 
-// ========== نفس الفنكشن (بس خليه دايم false) ==========
+// ========== نفس الفنكشن ==========
 async function checkModeration(text) {
   return false;
 }
